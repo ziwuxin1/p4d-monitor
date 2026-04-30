@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}P4D Monitor{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <span class="logo">📊</span>
+            <span>P4D Monitor</span>
+        </div>
+        <nav>
+            {% if session.logged_in %}
+                <a href="{{ url_for('dashboard') }}">仪表盘</a>
+                <a href="{{ url_for('alerts') }}">告警历史</a>
+                <span class="sep">·</span>
+                <span class="user">{{ session.user }}</span>
+                <a href="{{ url_for('logout') }}" class="logout">退出</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>P4D Monitor · <a href="https://github.com/ziwuxin1/p4d-monitor" target="_blank">GitHub</a></p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

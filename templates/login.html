@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}登录 · P4D Monitor{% endblock %}
+{% block content %}
+<div class="login-container">
+    <h1>P4D Monitor</h1>
+    <p class="subtitle">登录查看服务器状态</p>
+
+    {% if error %}
+        <div class="error-banner">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" class="login-form">
+        <label>
+            用户名
+            <input type="text" name="username" required autofocus autocomplete="username">
+        </label>
+        <label>
+            密码
+            <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button type="submit">登录</button>
+    </form>
+</div>
+{% endblock %}

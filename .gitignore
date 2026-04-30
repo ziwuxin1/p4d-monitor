@@ -1,0 +1,24 @@
+# Config with secrets - 永远不要 commit
+config/config.yaml
+config/ssh_key
+config/ssh_key.pub
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+logs/
+*.log

@@ -1,0 +1,56 @@
+# P4D Monitor 配置文件
+# 部署时复制此文件为 config.yaml,填入真实值。
+# config.yaml 已加入 .gitignore,不会被 commit。
+
+dashboard:
+  host: 0.0.0.0           # 监听所有网卡(LAN + Tailscale)
+  port: 8080
+  username: admin         # 登录用户名
+  # 密码用 install.sh 时通过命令生成 bcrypt hash:
+  #   python3 -c "import bcrypt; print(bcrypt.hashpw(b'你的密码', bcrypt.gensalt()).decode())"
+  password_hash: ""       # bcrypt hash,例: $2b$12$abcdef...
+  secret_key: ""          # Flask session 密钥,install.sh 自动生成
+
+probe:
+  interval_seconds: 300   # 5 分钟探测一次
+  ssh_timeout: 10
+  ssh_key_path: /etc/p4d-monitor/ssh_key   # SSH 私钥(install.sh 自动生成)
+
+servers:
+  - name: MAXs
+    host: 192.168.1.51
+    ssh_port: 22
+    ssh_user: root
+    p4d_port: 1888
+    p4d_root: /opt/perforce/servers/master
+    backup_dir: /opt/perforce/backups
+    nas_dir: /mnt/nas/p4d-backups/vm1
+
+  - name: Student
+    host: 192.168.1.50
+    ssh_port: 22
+    ssh_user: root
+    p4d_port: 1888
+    p4d_root: /opt/perforce/servers/master
+    backup_dir: /opt/perforce/backups
+    nas_dir: /mnt/nas/p4d-backups/vm1
+
+email:
+  enabled: true
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  smtp_user: ""           # 你的 Gmail 邮箱(用来发邮件)
+  smtp_password: ""       # Gmail App Password(16 位)
+  from_addr: ""           # 例: P4D Monitor <your-monitor@gmail.com>
+  to_addr: zho181501@gmail.com
+
+alerts:
+  daily_summary_time: "09:00"   # 每天定时摘要(24h 制)
+  recovery_notification: true   # 恢复正常时也发邮件
+  cooldown_minutes: 30          # 同一告警 30 分钟内不重发
+
+  thresholds:
+    checkpoint_age_hours: 26    # 本地 checkpoint 超过 26h 没新的 → 告警
+    nas_age_hours: 26           # NAS rsync 超过 26h → 告警
+    disk_pct_warn: 80           # 磁盘 80% 警告
+    disk_pct_critical: 90       # 磁盘 90% 严重告警

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}告警历史 · P4D Monitor{% endblock %}
+{% block content %}
+
+<div class="dashboard-header">
+    <h1>告警历史</h1>
+    <div class="meta">最近 100 条</div>
+</div>
+
+<div class="alerts-table-wrap">
+    <table class="alerts-table">
+        <thead>
+            <tr>
+                <th>时间</th>
+                <th>服务器</th>
+                <th>严重度</th>
+                <th>类型</th>
+                <th>消息</th>
+                <th>邮件</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in alerts %}
+                <tr class="severity-{{ a.severity }}">
+                    <td class="ts">{{ a.timestamp[:19] }}Z</td>
+                    <td><b>{{ a.server_name }}</b></td>
+                    <td>
+                        {% if a.severity == "critical" %}🚨{% elif a.severity == "warning" %}⚠️{% else %}ℹ️{% endif %}
+                        {{ a.severity }}
+                    </td>
+                    <td><code>{{ a.alert_key }}</code></td>
+                    <td>{{ a.message }}</td>
+                    <td class="sent-cell">{% if a.sent %}✅{% else %}–{% endif %}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="empty">暂无告警记录 🎉</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

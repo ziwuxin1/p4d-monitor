@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ server.name }} · P4D Monitor{% endblock %}
+{% block content %}
+
+<div class="dashboard-header">
+    <h1>{{ server.name }} 详情</h1>
+    <div class="meta">{{ server.host }}:{{ server.p4d_port }} · SSH {{ server.ssh_user }}@{{ server.host }}:{{ server.ssh_port }}</div>
+</div>
+
+<a href="{{ url_for('dashboard') }}" class="btn-back">← 返回仪表盘</a>
+
+{% if probe %}
+    <div class="detail-grid">
+        <div class="detail-section">
+            <h2>当前状态</h2>
+            <pre class="json-dump">{{ probe | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="detail-section">
+            <h2>24h 历史 ({{ history|length }} 次探测)</h2>
+            <canvas id="trend-chart" width="600" height="200"></canvas>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>状态</th>
+                        <th>磁盘 %</th>
+                        <th>Counter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in history[-30:] | reverse %}
+                        <tr class="health-{{ h.health }}">
+                            <td>{{ h.timestamp[:19] }}Z</td>
+                            <td>{{ h.health }}</td>
+                            <td>{{ h.disk_pct or '—' }}</td>
+                            <td>{{ h.counter_change or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <p>尚无探测数据。</p>
+{% endif %}
+
+{% endblock %}

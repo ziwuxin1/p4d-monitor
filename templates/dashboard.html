@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}仪表盘 · P4D Monitor{% endblock %}
+{% block content %}
+
+<div class="dashboard-header">
+    <h1>P4D 服务器实时状态</h1>
+    <div class="meta">最后刷新: <span id="last-refresh">{{ now }}</span></div>
+</div>
+
+<div class="server-grid">
+    {% for srv in servers %}
+        {% set p = probes.get(srv.name) %}
+        {% set health = p.health if p else "unknown" %}
+        <div class="server-card health-{{ health }}" data-server="{{ srv.name }}">
+            <div class="card-header">
+                <h2>
+                    {% if health == "ok" %}✅
+                    {% elif health == "warning" %}⚠️
+                    {% elif health == "critical" %}🚨
+                    {% elif health == "down" %}❌
+                    {% else %}❓
+                    {% endif %}
+                    {{ srv.name }}
+                </h2>
+                <div class="addr">{{ srv.host }}:{{ srv.p4d_port }}</div>
+            </div>
+
+            {% if p %}
+                {% if p.error %}
+                    <div class="error-box">
+                        <strong>探测失败</strong><br>{{ p.error }}
+                    </div>
+                {% else %}
+                    <div class="status-grid">
+                        <div class="status-row">
+                            <span class="label">服务</span>
+                            <span class="value {% if p.service_active %}ok{% else %}fail{% endif %}">
+                                {% if p.service_active %}✓ Active{% else %}✗ {{ p.service_state or '?' }}{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">端口监听</span>
+                            <span class="value {% if p.port_listening %}ok{% else %}fail{% endif %}">
+                                {% if p.port_listening %}✓ {{ p.port_address or 'OK' }}{% else %}✗ NOT listening{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">License</span>
+                            <span class="value {% if p.p4_license and 'none' not in p.p4_license.lower() and '5 user' not in p.p4_license.lower() %}ok{% else %}fail{% endif %}">
+                                {{ p.p4_license or '—' }}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">Counter</span>
+                            <span class="value {% if p.counter_consistent %}ok{% else %}warn{% endif %}">
+                                {{ p.counter_change or '—' }}
+                                {% if p.max_change %}
+                                    <span class="muted">(MAX={{ p.max_change }})</span>
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">Case Handling</span>
+                            <span class="value">{{ p.p4_case_handling or '—' }}</span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">本地 Checkpoint</span>
+                            <span class="value {% if p.checkpoint_local_age_min and p.checkpoint_local_age_min > 1560 %}warn{% else %}ok{% endif %}">
+                                {% if p.checkpoint_local_age_min %}
+                                    {{ (p.checkpoint_local_age_min // 60) }}h {{ (p.checkpoint_local_age_min % 60) }}m 前
+                                {% else %}—{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">NAS 备份</span>
+                            <span class="value {% if not p.nas_mounted %}fail{% elif p.checkpoint_nas_age_min and p.checkpoint_nas_age_min > 1560 %}warn{% else %}ok{% endif %}">
+                                {% if not p.nas_mounted %}
+                                    ✗ NAS 未挂载
+                                {% elif p.checkpoint_nas_age_min %}
+                                    {{ (p.checkpoint_nas_age_min // 60) }}h {{ (p.checkpoint_nas_age_min % 60) }}m 前
+                                {% else %}—{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">磁盘</span>
+                            <span class="value {% if p.disk_pct and p.disk_pct >= 90 %}fail{% elif p.disk_pct and p.disk_pct >= 80 %}warn{% else %}ok{% endif %}">
+                                {% if p.disk_pct %}
+                                    {{ p.disk_pct }}%
+                                    {% if p.disk_free_kb %}
+                                        <span class="muted">({{ '%.0f'|format(p.disk_free_kb / 1024 / 1024) }}G free)</span>
+                                    {% endif %}
+                                {% else %}—{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="status-row">
+                            <span class="label">最近 1h 错误日志</span>
+                            <span class="value {% if p.recent_errors_1h > 5 %}warn{% else %}ok{% endif %}">
+                                {{ p.recent_errors_1h }} 条
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if p.depot_sizes %}
+                        <details class="depot-details">
+                            <summary>{{ p.depot_sizes|length }} 个 Depot</summary>
+                            <ul>
+                                {% for d in p.depot_sizes %}
+                                    <li>{{ d.name }} <span class="muted">{{ d.size }}</span></li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% endif %}
+
+                    <div class="card-footer">
+                        <span class="muted">探测时间: {{ p.timestamp[:19] }}Z</span>
+                        <button onclick="recheck('{{ srv.name }}')" class="btn-recheck">🔄 重新探测</button>
+                        <a href="{{ url_for('server_detail', name=srv.name) }}" class="btn-detail">详情 →</a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="loading">尚未探测,等下一轮调度...</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+<script>
+async function recheck(name) {
+    const card = document.querySelector(`[data-server="${name}"]`);
+    card.style.opacity = "0.5";
+    try {
+        const r = await fetch(`/api/server/${name}/recheck`, { method: "POST" });
+        if (r.ok) {
+            location.reload();
+        }
+    } finally {
+        card.style.opacity = "1";
+    }
+}
+
+// 自动刷新(每 30 秒拉一次最新数据,无需整页 reload)
+async function refreshAll() {
+    try {
+        const r = await fetch("/api/servers");
+        if (!r.ok) return;
+        // 简单起见,有更新就 reload
+        const data = await r.json();
+        // 只在有探测时间变化时 reload
+        const last = sessionStorage.getItem("last_probe_ts") || "";
+        const newest = Object.values(data).map(p => p.timestamp).sort().pop() || "";
+        if (newest && newest !== last) {
+            sessionStorage.setItem("last_probe_ts", newest);
+            location.reload();
+        }
+    } catch (e) {
+        console.error("Refresh failed:", e);
+    }
+}
+
+setInterval(refreshAll, 30000);
+</script>
+
+{% endblock %}
