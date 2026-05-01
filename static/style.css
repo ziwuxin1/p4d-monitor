@@ -48,7 +48,7 @@ a:hover { text-decoration: underline; }
     font-weight: 600;
     font-size: 18px;
 }
-.brand .logo { font-size: 24px; }
+.brand .logo { width: 36px; height: 36px; border-radius: 8px; display: block; }
 .topbar nav { display: flex; gap: 16px; align-items: center; }
 .topbar nav .sep { color: var(--text-muted); }
 .topbar nav .user { color: var(--text-muted); font-size: 14px; }
