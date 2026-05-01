@@ -8,10 +8,10 @@
 </head>
 <body>
     <header class="topbar">
-        <div class="brand">
+        <a class="brand" href="{{ url_for('dashboard') }}">
             <span class="logo">📊</span>
             <span>P4D Monitor</span>
-        </div>
+        </a>
         <nav>
             {% if session.logged_in %}
                 <a href="{{ url_for('dashboard') }}">仪表盘</a>
