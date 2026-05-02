@@ -7,11 +7,21 @@
     <div class="meta">最近 100 条</div>
 </div>
 
+<div class="alerts-filter">
+    <button class="filter-btn active" data-filter="all">全部 ({{ alerts|length }})</button>
+    {% set servers_in_alerts = alerts | map(attribute='server_name') | unique | list %}
+    {% for srv in servers_in_alerts %}
+        {% set count = alerts | selectattr('server_name', 'equalto', srv) | list | length %}
+        <button class="filter-btn" data-filter="{{ srv }}">{{ srv }} ({{ count }})</button>
+    {% endfor %}
+</div>
+
 <div class="alerts-table-wrap">
     <table class="alerts-table">
         <thead>
             <tr>
-                <th>时间</th>
+                <th>日期</th>
+                <th>时间 (UTC)</th>
                 <th>服务器</th>
                 <th>严重度</th>
                 <th>类型</th>
@@ -21,9 +31,14 @@
         </thead>
         <tbody>
             {% for a in alerts %}
-                <tr class="severity-{{ a.severity }}">
-                    <td class="ts">{{ a.timestamp[:19] }}Z</td>
-                    <td><b>{{ a.server_name }}</b></td>
+                {# timestamp 格式: 2026-05-01T22:24:56.123+00:00 → 拆 date / time #}
+                {% set ts = a.timestamp[:19] %}
+                {% set date_part = ts[:10] %}
+                {% set time_part = ts[11:19] %}
+                <tr class="severity-{{ a.severity }}" data-server="{{ a.server_name }}">
+                    <td class="ts-date">{{ date_part }}</td>
+                    <td class="ts-time">{{ time_part }}</td>
+                    <td class="server-cell"><b>{{ a.server_name }}</b></td>
                     <td>
                         {% if a.severity == "critical" %}🚨{% elif a.severity == "warning" %}⚠️{% else %}ℹ️{% endif %}
                         {{ a.severity }}
@@ -33,10 +48,28 @@
                     <td class="sent-cell">{% if a.sent %}✅{% else %}–{% endif %}</td>
                 </tr>
             {% else %}
-                <tr><td colspan="6" class="empty">暂无告警记录 🎉</td></tr>
+                <tr><td colspan="7" class="empty">暂无告警记录 🎉</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<script>
+// 服务器筛选: 点 tab 切换显示哪台服务器的告警
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const filter = btn.dataset.filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.alerts-table tbody tr').forEach(row => {
+            if (filter === 'all' || row.dataset.server === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
 
 {% endblock %}
