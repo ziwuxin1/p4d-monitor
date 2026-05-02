@@ -62,6 +62,11 @@ echo "===SECTION:depot_size==="
 du -sh __P4ROOT__/*/ 2>/dev/null | grep -v '^[0-9.]*K' | head -20
 echo "===SECTION:errors_recent==="
 journalctl -u p4d --since '1h ago' -p err --no-pager 2>/dev/null | wc -l
+echo "===SECTION:monitor_show==="
+if [[ -f /opt/perforce/.p4_admin_passwd ]]; then
+    /opt/perforce/bin/p4 -p localhost:__P4PORT__ -u admin login < /opt/perforce/.p4_admin_passwd >/dev/null 2>&1
+    /opt/perforce/bin/p4 -p localhost:__P4PORT__ -u admin monitor show -ael 2>/dev/null
+fi
 echo "===END==="
 """.strip()
 
@@ -106,6 +111,9 @@ class ProbeResult:
 
     # 日志
     recent_errors_1h: int = 0
+
+    # 当前活跃操作(p4 monitor show -ael 解析结果)
+    active_ops: list[dict[str, Any]] = field(default_factory=list)
 
     # 整体健康评级
     health: str = "unknown"  # ok / warning / critical / down
@@ -283,6 +291,38 @@ def _parse_probe_output(output: str, result: ProbeResult) -> None:
     err_str = sections.get("errors_recent", "0").strip()
     if err_str.isdigit():
         result.recent_errors_1h = int(err_str)
+
+    # Active operations (p4 monitor show -ael 输出)
+    # 格式举例:
+    #   12345 R user_zhang 00:00:42 submit -d 'updated character'
+    #   12346 R user_li    00:01:23 sync //depot/...
+    # 字段: PID 状态 用户 运行时长 命令 [参数]
+    monitor_text = sections.get("monitor_show", "").strip()
+    if monitor_text:
+        # admin 自己跑的 monitor show 也会出现在结果里 — 需要过滤掉
+        for line in monitor_text.splitlines():
+            m = re.match(
+                r"^\s*(\d+)\s+(\w+)\s+(\S+)\s+(\d+:\d+:\d+)\s+(\S+)\s*(.*)$",
+                line,
+            )
+            if not m:
+                continue
+            pid, status, user, runtime, cmd, args = m.groups()
+            # 跳过 monitor 自己
+            if cmd == "monitor":
+                continue
+            # 解析时长成秒
+            h, mi, s = runtime.split(":")
+            runtime_sec = int(h) * 3600 + int(mi) * 60 + int(s)
+            result.active_ops.append({
+                "pid": int(pid),
+                "status": status,
+                "user": user,
+                "runtime": runtime,
+                "runtime_sec": runtime_sec,
+                "command": cmd,
+                "args": args.strip(),
+            })
 
 
 def _classify_health(r: ProbeResult) -> str:
