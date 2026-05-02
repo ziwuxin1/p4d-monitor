@@ -4,7 +4,7 @@
 
 <div class="dashboard-header">
     <h1>P4D 服务器实时状态</h1>
-    <div class="meta">最后刷新: <span id="last-refresh">{{ now }}</span></div>
+    <div class="meta">最后刷新: <time class="local-datetime" datetime="{{ now_iso }}" id="last-refresh">{{ now_iso }}</time></div>
 </div>
 
 <div class="server-grid">
@@ -149,7 +149,7 @@
                     {% endif %}
 
                     <div class="card-footer">
-                        <span class="muted">探测时间: {{ p.timestamp[:19] }}Z</span>
+                        <span class="muted">探测时间: <time class="local-datetime" datetime="{{ p.timestamp }}">{{ p.timestamp[:10] }} {{ p.timestamp[11:19] }} UTC</time></span>
                         <button onclick="recheck('{{ srv.name }}')" class="btn-recheck">🔄 重新探测</button>
                         <a href="{{ url_for('server_detail', name=srv.name) }}" class="btn-detail">详情 →</a>
                     </div>
@@ -195,6 +195,25 @@ async function refreshAll() {
 }
 
 setInterval(refreshAll, 30000);
+
+// 把 UTC ISO 时间戳按浏览器本地时区显示
+//   .local-datetime → 完整: 2026-05-01 21:30:25 (America/Los_Angeles)
+//   .local-date     → 只日期
+//   .local-time     → 只时间
+function convertLocalTimes() {
+    const pad = n => String(n).padStart(2, "0");
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    document.querySelectorAll("time[datetime]").forEach(el => {
+        const d = new Date(el.getAttribute("datetime"));
+        if (isNaN(d)) return;
+        const date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        if (el.classList.contains("local-datetime"))  el.textContent = `${date} ${time} (${tz})`;
+        else if (el.classList.contains("local-date")) el.textContent = date;
+        else if (el.classList.contains("local-time")) el.textContent = time;
+    });
+}
+convertLocalTimes();
 </script>
 
 {% endblock %}

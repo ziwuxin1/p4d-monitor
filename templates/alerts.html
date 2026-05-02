@@ -21,7 +21,7 @@
         <thead>
             <tr>
                 <th>日期</th>
-                <th>时间 (UTC)</th>
+                <th class="ts-time-th">时间</th>
                 <th>服务器</th>
                 <th>严重度</th>
                 <th>类型</th>
@@ -31,13 +31,10 @@
         </thead>
         <tbody>
             {% for a in alerts %}
-                {# timestamp 格式: 2026-05-01T22:24:56.123+00:00 → 拆 date / time #}
-                {% set ts = a.timestamp[:19] %}
-                {% set date_part = ts[:10] %}
-                {% set time_part = ts[11:19] %}
+                {# timestamp 是 UTC ISO,前端 JS 自动按浏览器本地时区拆分显示 #}
                 <tr class="severity-{{ a.severity }}" data-server="{{ a.server_name }}">
-                    <td class="ts-date">{{ date_part }}</td>
-                    <td class="ts-time">{{ time_part }}</td>
+                    <td class="ts-date"><time class="local-date" datetime="{{ a.timestamp }}">{{ a.timestamp[:10] }}</time></td>
+                    <td class="ts-time"><time class="local-time" datetime="{{ a.timestamp }}">{{ a.timestamp[11:19] }}</time></td>
                     <td class="server-cell"><b>{{ a.server_name }}</b></td>
                     <td>
                         {% if a.severity == "critical" %}🚨{% elif a.severity == "warning" %}⚠️{% else %}ℹ️{% endif %}
@@ -70,6 +67,24 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
         });
     });
 });
+
+// 按浏览器本地时区显示日期/时间(.local-date / .local-time / .local-datetime)
+(function convertLocalTimes() {
+    const pad = n => String(n).padStart(2, "0");
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    document.querySelectorAll("time[datetime]").forEach(el => {
+        const d = new Date(el.getAttribute("datetime"));
+        if (isNaN(d)) return;
+        const date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        if (el.classList.contains("local-datetime"))  el.textContent = `${date} ${time} (${tz})`;
+        else if (el.classList.contains("local-date")) el.textContent = date;
+        else if (el.classList.contains("local-time")) el.textContent = time;
+    });
+    // 表头加上时区提示
+    const th = document.querySelector(".ts-time-th");
+    if (th) th.textContent = `时间 (${tz})`;
+})();
 </script>
 
 {% endblock %}

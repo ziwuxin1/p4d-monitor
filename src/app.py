@@ -91,7 +91,7 @@ def create_app() -> Flask:
             "dashboard.html",
             servers=servers,
             probes=latest,
-            now=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+            now_iso=datetime.now(timezone.utc).isoformat(),
         )
 
     @app.route("/api/servers")
