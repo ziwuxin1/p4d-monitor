@@ -336,10 +336,106 @@ footer {
 .history-table tr.health-critical td:nth-child(2) { color: var(--critical); }
 .history-table tr.health-down     td:nth-child(2) { color: var(--critical); }
 
+/* Active Operations panel */
+.active-ops-details {
+    margin-top: 12px;
+    padding: 8px 10px;
+    background: rgba(16, 185, 129, 0.05);
+    border-radius: 6px;
+    border-left: 3px solid var(--ok);
+}
+.active-ops-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    user-select: none;
+}
+.active-ops-table {
+    width: 100%;
+    margin-top: 8px;
+    font-size: 12px;
+    border-collapse: collapse;
+}
+.active-ops-table th {
+    text-align: left;
+    padding: 4px 6px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+}
+.active-ops-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+}
+.active-ops-table tr.long-running td {
+    color: var(--warn);
+}
+.active-ops-table .op-args {
+    margin-left: 6px;
+    font-size: 11px;
+}
+.active-ops-table .op-runtime {
+    font-family: monospace;
+    text-align: right;
+    white-space: nowrap;
+}
+.active-ops-empty {
+    margin-top: 12px;
+    padding: 8px 10px;
+    font-size: 12px;
+    text-align: center;
+    background: rgba(255,255,255,0.02);
+    border-radius: 6px;
+}
+
+/* Alerts page filter tabs */
+.alerts-filter {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.alerts-filter .filter-btn {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.alerts-filter .filter-btn:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+.alerts-filter .filter-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Alerts table — date / time 分列 */
+.alerts-table .ts-date {
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.alerts-table .ts-time {
+    font-family: monospace;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.alerts-table .server-cell {
+    white-space: nowrap;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
     main { padding: 12px; }
     .server-grid { grid-template-columns: 1fr; }
     .topbar { padding: 10px 16px; }
     .dashboard-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+    .alerts-filter { gap: 4px; }
+    .alerts-filter .filter-btn { padding: 4px 10px; font-size: 12px; }
 }
