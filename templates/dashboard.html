@@ -119,6 +119,35 @@
                         </details>
                     {% endif %}
 
+                    {% if p.active_ops %}
+                        <details class="active-ops-details" open>
+                            <summary>🟢 当前活跃操作 ({{ p.active_ops|length }})</summary>
+                            <table class="active-ops-table">
+                                <thead>
+                                    <tr>
+                                        <th>用户</th>
+                                        <th>命令</th>
+                                        <th>运行时长</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for op in p.active_ops %}
+                                        <tr class="{% if op.runtime_sec > 300 %}long-running{% endif %}">
+                                            <td><b>{{ op.user }}</b></td>
+                                            <td>
+                                                <code>{{ op.command }}</code>
+                                                {% if op.args %}<span class="op-args muted">{{ op.args[:50] }}{% if op.args|length > 50 %}…{% endif %}</span>{% endif %}
+                                            </td>
+                                            <td class="op-runtime">{{ op.runtime }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </details>
+                    {% else %}
+                        <div class="active-ops-empty muted">⏸ 当前无活跃操作</div>
+                    {% endif %}
+
                     <div class="card-footer">
                         <span class="muted">探测时间: {{ p.timestamp[:19] }}Z</span>
                         <button onclick="recheck('{{ srv.name }}')" class="btn-recheck">🔄 重新探测</button>
