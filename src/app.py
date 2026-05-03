@@ -13,6 +13,7 @@ from flask import (
 )
 
 from . import auth, config as cfgmod, db, scheduler
+from . import __version__ as APP_VERSION
 
 
 log = logging.getLogger("p4d-monitor.app")
@@ -40,6 +41,11 @@ def create_app() -> Flask:
     # 启动调度器(只在主进程,避免 reload 时双倍)
     if os.environ.get("P4D_MONITOR_DISABLE_SCHEDULER") != "1":
         scheduler.start(cfg)
+
+    # 把版本号注入所有模板,base.html 用 {{ app_version }} 展示
+    @app.context_processor
+    def _inject_version() -> dict:
+        return {"app_version": APP_VERSION}
 
     # ---- 路由 ----
 

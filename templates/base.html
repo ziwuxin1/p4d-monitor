@@ -11,6 +11,7 @@
         <a class="brand" href="{{ url_for('dashboard') }}">
             <img class="logo" src="{{ url_for('static', filename='logo.png') }}" alt="P4D Monitor">
             <span>P4D Monitor</span>
+            <span class="version">v{{ app_version }}</span>
         </a>
         <nav>
             {% if session.logged_in %}
@@ -28,7 +29,7 @@
     </main>
 
     <footer>
-        <p>P4D Monitor · <a href="https://github.com/ziwuxin1/p4d-monitor" target="_blank">GitHub</a></p>
+        <p>P4D Monitor v{{ app_version }} · <a href="https://github.com/ziwuxin1/p4d-monitor" target="_blank">GitHub</a></p>
     </footer>
 
     {% block scripts %}{% endblock %}
