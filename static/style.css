@@ -1,11 +1,13 @@
 /* P4D Monitor — 简洁现代风格 */
 :root {
-    --bg: #0f172a;
-    --bg-card: #1e293b;
-    --bg-card-hover: #293548;
+    --bg: #06080f;              /* 几乎纯黑,带一点点蓝 */
+    --bg-elev: #0d111c;         /* 二级面板 */
+    --bg-card: #111623;         /* 卡片 */
+    --bg-card-hover: #161c2e;
     --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --border: #334155;
+    --text-muted: #6b7280;
+    --border: #1e2435;          /* 几乎不可见的描边 */
+    --border-strong: #2a3147;
     --ok: #10b981;
     --warn: #f59e0b;
     --critical: #ef4444;
@@ -32,11 +34,12 @@ a:hover { text-decoration: underline; }
     justify-content: space-between;
     align-items: center;
     padding: 12px 24px;
-    background: var(--bg-card);
+    background: var(--bg-elev);
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 10;
+    backdrop-filter: blur(8px);
 }
 .brand {
     text-decoration: none;
@@ -147,21 +150,7 @@ footer {
     gap: 20px;
 }
 
-.server-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    border-left-width: 5px;
-    transition: background 0.2s;
-}
-.server-card:hover { background: var(--bg-card-hover); }
-
-.server-card.health-ok       { border-left-color: var(--ok); }
-.server-card.health-warning  { border-left-color: var(--warn); }
-.server-card.health-critical { border-left-color: var(--critical); }
-.server-card.health-down     { border-left-color: var(--critical); }
-.server-card.health-unknown  { border-left-color: var(--text-muted); }
+/* (legacy v1.0 border-left + hover bg removed in v1.1 — health-{name} 现在用 ::before 顶部彩条) */
 
 .card-header {
     display: flex;
@@ -453,8 +442,8 @@ footer {
     --grad-green: linear-gradient(135deg, #10b981 0%, #047857 100%);
     --grad-red: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
     --grad-amber: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
-    --shadow-card: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04);
-    --shadow-hover: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+    --shadow-card: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
+    --shadow-hover: 0 12px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
 }
 
 /* === Dashboard header (新版,带 realtime 状态指示) === */
@@ -486,10 +475,11 @@ footer {
     gap: 8px;
     font-size: 12px;
     color: var(--text-muted);
-    padding: 6px 12px;
-    background: var(--bg-card);
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.025);
     border-radius: 999px;
     border: 1px solid var(--border);
+    backdrop-filter: blur(4px);
 }
 .poll-status .dot {
     width: 8px; height: 8px; border-radius: 50%;
@@ -627,7 +617,8 @@ footer {
     margin-bottom: 14px;
 }
 .mini {
-    background: rgba(255,255,255,0.025);
+    background: rgba(255,255,255,0.015);
+    border: 1px solid rgba(255,255,255,0.04);
     border-radius: 8px;
     padding: 8px 10px 4px;
     position: relative;
@@ -690,6 +681,17 @@ footer {
 .pair .val.warn  { color: #fbbf24; }
 .pair .val.fail  { color: #f87171; }
 .pair .val.muted { color: var(--text-muted); }
+.pair.wide {
+    grid-column: 1 / -1;
+}
+.pair.wide .val {
+    white-space: normal;
+    text-overflow: clip;
+    word-break: break-word;
+    text-align: right;
+    flex: 1;
+    min-width: 0;
+}
 
 /* === 卡片底部 === */
 .card-foot {
@@ -711,9 +713,11 @@ footer {
 }
 .chart-wrap.small {
     height: 200px;
-    padding: 8px;
-    background: rgba(255,255,255,0.02);
-    border-radius: 8px;
+    padding: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 /* === 版本号样式微调(覆盖原来的) === */
