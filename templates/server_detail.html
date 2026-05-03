@@ -31,7 +31,7 @@
                 <tbody>
                     {% for h in history[-30:] | reverse %}
                         <tr class="health-{{ h.health }}">
-                            <td>{{ h.timestamp[:19] }}Z</td>
+                            <td><time class="local-datetime" datetime="{{ h.timestamp }}">{{ h.timestamp[:10] }} {{ h.timestamp[11:19] }} UTC</time></td>
                             <td>{{ h.health }}</td>
                             <td>{{ h.disk_pct or '—' }}</td>
                             <td>{{ h.counter_change or '—' }}</td>

@@ -32,6 +32,29 @@
         <p>P4D Monitor v{{ app_version }} · <a href="https://github.com/ziwuxin1/p4d-monitor" target="_blank">GitHub</a></p>
     </footer>
 
+    <script>
+    // 把 UTC ISO 时间戳按浏览器本地时区显示。所有 <time class="..."> 标签都自动转
+    //   .local-datetime → 完整: 2026-05-01 21:30:25 (America/Los_Angeles)
+    //   .local-date     → 只日期
+    //   .local-time     → 只时间
+    (function convertLocalTimes() {
+        const pad = n => String(n).padStart(2, "0");
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.querySelectorAll("time[datetime]").forEach(el => {
+            const d = new Date(el.getAttribute("datetime"));
+            if (isNaN(d)) return;
+            const date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            if (el.classList.contains("local-datetime"))  el.textContent = `${date} ${time} (${tz})`;
+            else if (el.classList.contains("local-date")) el.textContent = date;
+            else if (el.classList.contains("local-time")) el.textContent = time;
+        });
+        // 告警页表头自动加时区(其他页没这元素就跳过)
+        const th = document.querySelector(".ts-time-th");
+        if (th) th.textContent = `时间 (${tz})`;
+    })();
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>
