@@ -18,7 +18,7 @@
 
         <div class="detail-section">
             <h2>24h 历史 ({{ history|length }} 次探测)</h2>
-            <canvas id="trend-chart" width="600" height="200"></canvas>
+            <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
             <table class="history-table">
                 <thead>
                     <tr>
@@ -44,5 +44,64 @@
 {% else %}
     <p>尚无探测数据。</p>
 {% endif %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const history = {{ history | tojson }};
+    const ctx = document.getElementById("trend-chart");
+    if (!ctx || !history || history.length === 0) return;
+
+    const labels = history.map(h => {
+        const d = new Date(h.timestamp);
+        return d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+    });
+    const disk = history.map(h => (h.disk_pct == null ? null : h.disk_pct));
+    const errors = history.map(h => h.recent_errors_1h || 0);
+
+    new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: "磁盘 %",
+                    data: disk,
+                    borderColor: "#4ade80",
+                    backgroundColor: "rgba(74, 222, 128, 0.1)",
+                    yAxisID: "y",
+                    tension: 0.25,
+                    pointRadius: 1,
+                    spanGaps: true,
+                },
+                {
+                    label: "最近 1h 错误日志",
+                    data: errors,
+                    borderColor: "#f87171",
+                    backgroundColor: "rgba(248, 113, 113, 0.1)",
+                    yAxisID: "y1",
+                    tension: 0.25,
+                    pointRadius: 1,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            scales: {
+                y:  { type: "linear", position: "left",  beginAtZero: true, max: 100,
+                      title: { display: true, text: "磁盘 %" } },
+                y1: { type: "linear", position: "right", beginAtZero: true,
+                      title: { display: true, text: "错误数" },
+                      grid: { drawOnChartArea: false } }
+            },
+            plugins: { legend: { position: "top" } }
+        }
+    });
+})();
+</script>
+{% endblock %}
 
 {% endblock %}

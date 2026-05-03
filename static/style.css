@@ -440,3 +440,5 @@ footer {
     .alerts-filter { gap: 4px; }
     .alerts-filter .filter-btn { padding: 4px 10px; font-size: 12px; }
 }
+
+.chart-wrap { position: relative; height: 280px; margin: 12px 0 20px; }
