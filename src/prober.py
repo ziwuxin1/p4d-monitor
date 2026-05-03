@@ -62,6 +62,27 @@ echo "===SECTION:depot_size==="
 du -sh __P4ROOT__/*/ 2>/dev/null | grep -v '^[0-9.]*K' | head -20
 echo "===SECTION:errors_recent==="
 journalctl -u p4d --since '1h ago' -p err --no-pager 2>/dev/null | wc -l
+echo "===SECTION:cpu_count==="
+nproc
+echo "===SECTION:loadavg==="
+cat /proc/loadavg
+echo "===SECTION:meminfo==="
+grep -E "^(MemTotal|MemAvailable|MemFree|Buffers|Cached):" /proc/meminfo
+echo "===SECTION:cpu_pct==="
+# 取 0.3 秒 sample 算 CPU 利用率(idle 反推)
+read -r _ user nice system idle iowait irq softirq steal _ < /proc/stat
+total1=$((user + nice + system + idle + iowait + irq + softirq + steal))
+idle1=$((idle + iowait))
+sleep 0.3
+read -r _ user nice system idle iowait irq softirq steal _ < /proc/stat
+total2=$((user + nice + system + idle + iowait + irq + softirq + steal))
+idle2=$((idle + iowait))
+dt=$((total2 - total1))
+di=$((idle2 - idle1))
+[[ $dt -gt 0 ]] && echo $(( 100 * (dt - di) / dt )) || echo 0
+echo "===SECTION:p4d_proc==="
+# p4d 主进程的 RSS / CPU
+ps -o pid,rss,pcpu,etime,comm -C p4d --no-headers 2>/dev/null | head -5
 echo "===SECTION:monitor_show==="
 if [[ -f /opt/perforce/.p4_admin_passwd ]]; then
     /opt/perforce/bin/p4 -p localhost:__P4PORT__ -u admin login < /opt/perforce/.p4_admin_passwd >/dev/null 2>&1
@@ -111,6 +132,18 @@ class ProbeResult:
 
     # 日志
     recent_errors_1h: int = 0
+
+    # 系统资源(Phase 2 性能监控)
+    cpu_count: int | None = None
+    cpu_pct: int | None = None         # 0-100
+    load_1m: float | None = None
+    load_5m: float | None = None
+    load_15m: float | None = None
+    mem_total_mb: int | None = None
+    mem_used_mb: int | None = None     # MemTotal - MemAvailable
+    mem_pct: int | None = None         # 0-100
+    p4d_rss_mb: int | None = None      # p4d 主进程内存
+    p4d_cpu_pct: float | None = None   # p4d 主进程 CPU
 
     # 当前活跃操作(p4 monitor show -ael 解析结果)
     active_ops: list[dict[str, Any]] = field(default_factory=list)
@@ -291,6 +324,54 @@ def _parse_probe_output(output: str, result: ProbeResult) -> None:
     err_str = sections.get("errors_recent", "0").strip()
     if err_str.isdigit():
         result.recent_errors_1h = int(err_str)
+
+    # CPU count
+    cpu_count_str = sections.get("cpu_count", "").strip()
+    if cpu_count_str.isdigit():
+        result.cpu_count = int(cpu_count_str)
+
+    # Load average — /proc/loadavg 格式: 0.12 0.34 0.56 1/234 12345
+    loadavg = sections.get("loadavg", "").strip().split()
+    if len(loadavg) >= 3:
+        try:
+            result.load_1m = float(loadavg[0])
+            result.load_5m = float(loadavg[1])
+            result.load_15m = float(loadavg[2])
+        except ValueError:
+            pass
+
+    # /proc/meminfo
+    mem = {}
+    for line in sections.get("meminfo", "").splitlines():
+        parts = line.split(":")
+        if len(parts) == 2:
+            v = parts[1].strip().split()
+            if v and v[0].isdigit():
+                mem[parts[0].strip()] = int(v[0])  # kB
+    if "MemTotal" in mem:
+        result.mem_total_mb = mem["MemTotal"] // 1024
+        if "MemAvailable" in mem:
+            used_kb = mem["MemTotal"] - mem["MemAvailable"]
+            result.mem_used_mb = used_kb // 1024
+            if mem["MemTotal"] > 0:
+                result.mem_pct = round(100 * used_kb / mem["MemTotal"])
+
+    # CPU pct
+    cpu_pct_str = sections.get("cpu_pct", "").strip()
+    if cpu_pct_str.lstrip("-").isdigit():
+        result.cpu_pct = max(0, min(100, int(cpu_pct_str)))
+
+    # p4d 主进程 RSS / CPU(取第一个 p4d 进程,通常就是 server daemon)
+    proc_lines = sections.get("p4d_proc", "").strip().splitlines()
+    if proc_lines:
+        parts = proc_lines[0].split()
+        # PID RSS PCPU ETIME COMM
+        if len(parts) >= 5:
+            try:
+                result.p4d_rss_mb = int(parts[1]) // 1024  # rss in kB
+                result.p4d_cpu_pct = float(parts[2])
+            except (ValueError, IndexError):
+                pass
 
     # Active operations (p4 monitor show -ael 输出)
     # 格式举例:

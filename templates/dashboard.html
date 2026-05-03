@@ -2,199 +2,305 @@
 {% block title %}仪表盘 · P4D Monitor{% endblock %}
 {% block content %}
 
-<div class="dashboard-header">
-    <h1>P4D 服务器实时状态</h1>
-    <div class="meta">最后刷新: <time class="local-datetime" datetime="{{ now_iso }}" id="last-refresh">{{ now_iso }}</time></div>
+<div class="dash-header">
+    <div>
+        <h1>P4D 服务器实时状态</h1>
+        <div class="meta">最后刷新: <time class="local-datetime" datetime="{{ now_iso }}" id="last-refresh">{{ now_iso }}</time></div>
+    </div>
+    <div class="poll-status" id="poll-status">
+        <span class="dot live"></span> 实时(每 5s 拉一次)
+    </div>
 </div>
 
-<div class="server-grid">
+{# KPI 总览 #}
+<div class="kpi-strip">
+    <div class="kpi kpi-total">
+        <div class="kpi-label">服务器</div>
+        <div class="kpi-value" id="kpi-total">{{ servers|length }}</div>
+        <div class="kpi-sub">总台数</div>
+    </div>
+    <div class="kpi kpi-ok">
+        <div class="kpi-label">健康</div>
+        <div class="kpi-value" id="kpi-ok">—</div>
+        <div class="kpi-sub">运行中无异常</div>
+    </div>
+    <div class="kpi kpi-warn">
+        <div class="kpi-label">告警</div>
+        <div class="kpi-value" id="kpi-warn">—</div>
+        <div class="kpi-sub">需关注</div>
+    </div>
+    <div class="kpi kpi-crit">
+        <div class="kpi-label">严重 / 离线</div>
+        <div class="kpi-value" id="kpi-crit">—</div>
+        <div class="kpi-sub">需立即处理</div>
+    </div>
+</div>
+
+{# 服务器卡片 #}
+<div class="server-grid" id="server-grid">
     {% for srv in servers %}
-        {% set p = probes.get(srv.name) %}
-        {% set health = p.health if p else "unknown" %}
-        <div class="server-card health-{{ health }}" data-server="{{ srv.name }}">
-            <div class="card-header">
-                <h2>
-                    {% if health == "ok" %}✅
-                    {% elif health == "warning" %}⚠️
-                    {% elif health == "critical" %}🚨
-                    {% elif health == "down" %}❌
-                    {% else %}❓
-                    {% endif %}
-                    {{ srv.name }}
-                </h2>
-                <div class="addr">{{ srv.host }}:{{ srv.p4d_port }}</div>
+        <article class="server-card health-unknown" data-server="{{ srv.name }}">
+            <header class="card-head">
+                <div class="card-title">
+                    <span class="health-badge" data-field="health">❓</span>
+                    <h2>{{ srv.name }}</h2>
+                </div>
+                <div class="card-addr">{{ srv.host }}:{{ srv.p4d_port }}</div>
+            </header>
+
+            <div class="mini-charts">
+                <div class="mini">
+                    <div class="mini-label">CPU</div>
+                    <div class="mini-value" data-field="cpu_pct">—</div>
+                    <canvas class="mini-chart" data-metric="cpu"></canvas>
+                </div>
+                <div class="mini">
+                    <div class="mini-label">内存</div>
+                    <div class="mini-value" data-field="mem_pct">—</div>
+                    <canvas class="mini-chart" data-metric="mem"></canvas>
+                </div>
+                <div class="mini">
+                    <div class="mini-label">磁盘</div>
+                    <div class="mini-value" data-field="disk_pct">—</div>
+                    <canvas class="mini-chart" data-metric="disk"></canvas>
+                </div>
+                <div class="mini">
+                    <div class="mini-label">错误/h</div>
+                    <div class="mini-value" data-field="recent_errors_1h">—</div>
+                    <canvas class="mini-chart" data-metric="errors"></canvas>
+                </div>
             </div>
 
-            {% if p %}
-                {% if p.error %}
-                    <div class="error-box">
-                        <strong>探测失败</strong><br>{{ p.error }}
-                    </div>
-                {% else %}
-                    <div class="status-grid">
-                        <div class="status-row">
-                            <span class="label">服务</span>
-                            <span class="value {% if p.service_active %}ok{% else %}fail{% endif %}">
-                                {% if p.service_active %}✓ Active{% else %}✗ {{ p.service_state or '?' }}{% endif %}
-                            </span>
-                        </div>
+            <div class="status-pairs">
+                <div class="pair"><span class="lbl">服务</span>     <span class="val" data-field="service_active">—</span></div>
+                <div class="pair"><span class="lbl">端口</span>     <span class="val" data-field="port_listening">—</span></div>
+                <div class="pair"><span class="lbl">License</span>  <span class="val" data-field="p4_license">—</span></div>
+                <div class="pair"><span class="lbl">Counter</span>  <span class="val" data-field="counter">—</span></div>
+                <div class="pair"><span class="lbl">本地 ckp</span> <span class="val" data-field="ckp_local">—</span></div>
+                <div class="pair"><span class="lbl">NAS ckp</span>  <span class="val" data-field="ckp_nas">—</span></div>
+                <div class="pair"><span class="lbl">Load</span>     <span class="val" data-field="load">—</span></div>
+                <div class="pair"><span class="lbl">活跃 ops</span> <span class="val" data-field="active_ops">—</span></div>
+            </div>
 
-                        <div class="status-row">
-                            <span class="label">端口监听</span>
-                            <span class="value {% if p.port_listening %}ok{% else %}fail{% endif %}">
-                                {% if p.port_listening %}✓ {{ p.port_address or 'OK' }}{% else %}✗ NOT listening{% endif %}
-                            </span>
-                        </div>
+            <div class="error-box" data-field="error" hidden></div>
 
-                        <div class="status-row">
-                            <span class="label">License</span>
-                            <span class="value {% if p.p4_license and 'none' not in p.p4_license.lower() and '5 user' not in p.p4_license.lower() %}ok{% else %}fail{% endif %}">
-                                {{ p.p4_license or '—' }}
-                            </span>
-                        </div>
-
-                        <div class="status-row">
-                            <span class="label">Counter</span>
-                            <span class="value {% if p.counter_consistent %}ok{% else %}warn{% endif %}">
-                                {{ p.counter_change or '—' }}
-                                {% if p.max_change %}
-                                    <span class="muted">(MAX={{ p.max_change }})</span>
-                                {% endif %}
-                            </span>
-                        </div>
-
-                        <div class="status-row">
-                            <span class="label">Case Handling</span>
-                            <span class="value">{{ p.p4_case_handling or '—' }}</span>
-                        </div>
-
-                        <div class="status-row">
-                            <span class="label">本地 Checkpoint</span>
-                            <span class="value {% if p.checkpoint_local_age_min and p.checkpoint_local_age_min > 1560 %}warn{% else %}ok{% endif %}">
-                                {% if p.checkpoint_local_age_min %}
-                                    {{ (p.checkpoint_local_age_min // 60) }}h {{ (p.checkpoint_local_age_min % 60) }}m 前
-                                {% else %}—{% endif %}
-                            </span>
-                        </div>
-
-                        <div class="status-row">
-                            <span class="label">NAS 备份</span>
-                            <span class="value {% if not p.nas_mounted %}fail{% elif p.checkpoint_nas_age_min and p.checkpoint_nas_age_min > 1560 %}warn{% else %}ok{% endif %}">
-                                {% if not p.nas_mounted %}
-                                    ✗ NAS 未挂载
-                                {% elif p.checkpoint_nas_age_min %}
-                                    {{ (p.checkpoint_nas_age_min // 60) }}h {{ (p.checkpoint_nas_age_min % 60) }}m 前
-                                {% else %}—{% endif %}
-                            </span>
-                        </div>
-
-                        <div class="status-row">
-                            <span class="label">磁盘</span>
-                            <span class="value {% if p.disk_pct and p.disk_pct >= 90 %}fail{% elif p.disk_pct and p.disk_pct >= 80 %}warn{% else %}ok{% endif %}">
-                                {% if p.disk_pct %}
-                                    {{ p.disk_pct }}%
-                                    {% if p.disk_free_kb %}
-                                        <span class="muted">({{ '%.0f'|format(p.disk_free_kb / 1024 / 1024) }}G free)</span>
-                                    {% endif %}
-                                {% else %}—{% endif %}
-                            </span>
-                        </div>
-
-                        <div class="status-row">
-                            <span class="label">最近 1h 错误日志</span>
-                            <span class="value {% if p.recent_errors_1h > 5 %}warn{% else %}ok{% endif %}">
-                                {{ p.recent_errors_1h }} 条
-                            </span>
-                        </div>
-                    </div>
-
-                    {% if p.depot_sizes %}
-                        <details class="depot-details">
-                            <summary>{{ p.depot_sizes|length }} 个 Depot</summary>
-                            <ul>
-                                {% for d in p.depot_sizes %}
-                                    <li>{{ d.name }} <span class="muted">{{ d.size }}</span></li>
-                                {% endfor %}
-                            </ul>
-                        </details>
-                    {% endif %}
-
-                    {% if p.active_ops %}
-                        <details class="active-ops-details" open>
-                            <summary>🟢 当前活跃操作 ({{ p.active_ops|length }})</summary>
-                            <table class="active-ops-table">
-                                <thead>
-                                    <tr>
-                                        <th>用户</th>
-                                        <th>命令</th>
-                                        <th>运行时长</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for op in p.active_ops %}
-                                        <tr class="{% if op.runtime_sec > 300 %}long-running{% endif %}">
-                                            <td><b>{{ op.user }}</b></td>
-                                            <td>
-                                                <code>{{ op.command }}</code>
-                                                {% if op.args %}<span class="op-args muted">{{ op.args[:50] }}{% if op.args|length > 50 %}…{% endif %}</span>{% endif %}
-                                            </td>
-                                            <td class="op-runtime">{{ op.runtime }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </details>
-                    {% else %}
-                        <div class="active-ops-empty muted">⏸ 当前无活跃操作</div>
-                    {% endif %}
-
-                    <div class="card-footer">
-                        <span class="muted">探测时间: <time class="local-datetime" datetime="{{ p.timestamp }}">{{ p.timestamp[:10] }} {{ p.timestamp[11:19] }} UTC</time></span>
-                        <button onclick="recheck('{{ srv.name }}')" class="btn-recheck">🔄 重新探测</button>
-                        <a href="{{ url_for('server_detail', name=srv.name) }}" class="btn-detail">详情 →</a>
-                    </div>
-                {% endif %}
-            {% else %}
-                <div class="loading">尚未探测,等下一轮调度...</div>
-            {% endif %}
-        </div>
+            <footer class="card-foot">
+                <span class="muted small">更新: <time data-field="timestamp" class="local-datetime" datetime="">—</time></span>
+                <button onclick="recheck('{{ srv.name }}')" class="btn-recheck">🔄 重新探测</button>
+                <a href="{{ url_for('server_detail', name=srv.name) }}" class="btn-detail">详情 →</a>
+            </footer>
+        </article>
     {% endfor %}
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-async function recheck(name) {
-    const card = document.querySelector(`[data-server="${name}"]`);
-    card.style.opacity = "0.5";
-    try {
-        const r = await fetch(`/api/server/${name}/recheck`, { method: "POST" });
-        if (r.ok) {
-            location.reload();
-        }
-    } finally {
-        card.style.opacity = "1";
-    }
-}
+(function () {
+    const POLL_INTERVAL_MS = 5000;
+    const SPARK_COLORS = { cpu: "#60a5fa", mem: "#a78bfa", disk: "#4ade80", errors: "#f87171" };
+    const HEALTH_BADGE = { ok: "✅", warning: "⚠️", critical: "🚨", down: "❌", unknown: "❓" };
+    const charts = {};
 
-// 自动刷新(每 30 秒拉一次最新数据,无需整页 reload)
-async function refreshAll() {
-    try {
-        const r = await fetch("/api/servers");
-        if (!r.ok) return;
-        // 简单起见,有更新就 reload
-        const data = await r.json();
-        // 只在有探测时间变化时 reload
-        const last = sessionStorage.getItem("last_probe_ts") || "";
-        const newest = Object.values(data).map(p => p.timestamp).sort().pop() || "";
-        if (newest && newest !== last) {
-            sessionStorage.setItem("last_probe_ts", newest);
-            location.reload();
-        }
-    } catch (e) {
-        console.error("Refresh failed:", e);
+    function makeMiniChart(canvas, metric) {
+        const color = SPARK_COLORS[metric] || "#888";
+        return new Chart(canvas, {
+            type: "line",
+            data: { labels: [], datasets: [{
+                data: [], borderColor: color, backgroundColor: color + "22",
+                fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
+            }]},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: { duration: 300 },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, beginAtZero: true,
+                         max: (metric === "errors" || metric === "load") ? undefined : 100 },
+                },
+            },
+        });
     }
-}
 
-setInterval(refreshAll, 30000);
+    function updateChart(server, metric, sparkline) {
+        const card = document.querySelector('[data-server="' + server + '"]');
+        if (!card) return;
+        const canvas = card.querySelector('canvas[data-metric="' + metric + '"]');
+        if (!canvas) return;
+        if (!charts[server]) charts[server] = {};
+        if (!charts[server][metric]) charts[server][metric] = makeMiniChart(canvas, metric);
+        const data = sparkline.map(p => p[metric] == null ? 0 : p[metric]);
+        const c = charts[server][metric];
+        c.data.labels = sparkline.map((_, i) => i);
+        c.data.datasets[0].data = data;
+        c.update("none");
+    }
+
+    function fmt(v, suffix) {
+        return (v == null || v === "") ? "—" : v + (suffix || "");
+    }
+    function ageHM(min) {
+        if (min == null) return "—";
+        const h = Math.floor(min / 60), m = min % 60;
+        return h > 0 ? (h + "h " + m + "m") : (m + "m");
+    }
+    function ageClass(min, warnH, critH) {
+        warnH = warnH || 26; critH = critH || 48;
+        if (min == null) return "";
+        if (min > critH * 60) return "fail";
+        if (min > warnH * 60) return "warn";
+        return "ok";
+    }
+    function setField(card, sel, val, cls) {
+        const el = card.querySelector('[data-field="' + sel + '"]');
+        if (!el) return;
+        el.textContent = val;
+        el.className = el.className.replace(/\b(ok|warn|fail|muted)\b/g, "").trim() + " " + (cls || "");
+    }
+
+    function updateCard(name, info) {
+        const card = document.querySelector('[data-server="' + name + '"]');
+        if (!card) return;
+        const p = info.latest || {};
+        const spark = info.sparkline || [];
+
+        const health = p.health || "unknown";
+        card.classList.remove("health-ok", "health-warning", "health-critical", "health-down", "health-unknown");
+        card.classList.add("health-" + health);
+        const badge = card.querySelector('[data-field="health"]');
+        if (badge) badge.textContent = HEALTH_BADGE[health] || "❓";
+
+        const errBox = card.querySelector('[data-field="error"]');
+        if (errBox) {
+            if (p.error) {
+                errBox.hidden = false;
+                errBox.innerHTML = "<strong>探测失败</strong><br>" + p.error;
+            } else {
+                errBox.hidden = true;
+            }
+        }
+
+        setField(card, "cpu_pct", fmt(p.cpu_pct, "%"));
+        setField(card, "mem_pct", fmt(p.mem_pct, "%"));
+        setField(card, "disk_pct", fmt(p.disk_pct, "%"));
+        setField(card, "recent_errors_1h", p.recent_errors_1h == null ? 0 : p.recent_errors_1h);
+
+        setField(card, "service_active",
+            p.service_active ? "✓ Active" : ("✗ " + (p.service_state || "?")),
+            p.service_active ? "ok" : "fail");
+        setField(card, "port_listening",
+            p.port_listening ? ("✓ " + (p.port_address || "OK")) : "✗ NOT listening",
+            p.port_listening ? "ok" : "fail");
+
+        const lic = p.p4_license || "—";
+        const licOk = lic !== "—" && !/none|5 user/i.test(lic);
+        setField(card, "p4_license", lic.length > 40 ? lic.slice(0, 40) + "…" : lic, licOk ? "ok" : "fail");
+
+        const counterOk = p.counter_consistent !== false;
+        setField(card, "counter",
+            p.counter_change == null ? "—"
+                : (p.counter_change + (p.max_change != null ? (" / " + p.max_change) : "")),
+            counterOk ? "ok" : "warn");
+
+        setField(card, "ckp_local",
+            (p.checkpoint_local_age_min == null ? "—" : ageHM(p.checkpoint_local_age_min) + " 前"),
+            ageClass(p.checkpoint_local_age_min));
+        setField(card, "ckp_nas",
+            !p.nas_mounted ? "✗ NAS 未挂载"
+                : (p.checkpoint_nas_age_min == null ? "—" : ageHM(p.checkpoint_nas_age_min) + " 前"),
+            !p.nas_mounted ? "fail" : ageClass(p.checkpoint_nas_age_min));
+
+        const load = p.load_1m;
+        const cpuC = p.cpu_count;
+        let loadCls = "ok";
+        if (load != null && cpuC) {
+            if (load > cpuC * 2) loadCls = "fail";
+            else if (load > cpuC) loadCls = "warn";
+        }
+        setField(card, "load",
+            load == null ? "—" : (load.toFixed(2) + (cpuC ? (" (" + cpuC + " core)") : "")),
+            loadCls);
+
+        const ops = p.active_ops || [];
+        setField(card, "active_ops", ops.length, ops.length > 0 ? "" : "muted");
+
+        const tsEl = card.querySelector('[data-field="timestamp"]');
+        if (tsEl && p.timestamp) {
+            tsEl.setAttribute("datetime", p.timestamp);
+            try {
+                const d = new Date(p.timestamp);
+                const pad = n => String(n).padStart(2, "0");
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                tsEl.textContent = d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate())
+                    + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds())
+                    + " (" + tz + ")";
+            } catch (e) { tsEl.textContent = p.timestamp; }
+        }
+
+        ["cpu", "mem", "disk", "errors"].forEach(m => updateChart(name, m, spark));
+    }
+
+    function updateKPIs(byName) {
+        const counts = { ok: 0, warning: 0, critical: 0, down: 0, unknown: 0 };
+        Object.values(byName).forEach(v => {
+            const h = (v.latest && v.latest.health) || "unknown";
+            counts[h] = (counts[h] || 0) + 1;
+        });
+        const okEl = document.getElementById("kpi-ok");
+        const warnEl = document.getElementById("kpi-warn");
+        const critEl = document.getElementById("kpi-crit");
+        if (okEl) okEl.textContent = counts.ok;
+        if (warnEl) warnEl.textContent = counts.warning;
+        if (critEl) critEl.textContent = counts.critical + counts.down;
+    }
+
+    let consecutiveFailures = 0;
+    async function poll() {
+        const dot = document.querySelector("#poll-status .dot");
+        try {
+            const r = await fetch("/api/servers");
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            const data = await r.json();
+            consecutiveFailures = 0;
+            if (dot) dot.className = "dot live";
+
+            updateKPIs(data);
+            Object.entries(data).forEach(([name, info]) => updateCard(name, info));
+
+            const refreshEl = document.getElementById("last-refresh");
+            if (refreshEl) {
+                const now = new Date().toISOString();
+                refreshEl.setAttribute("datetime", now);
+                const d = new Date(now);
+                const pad = n => String(n).padStart(2, "0");
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                refreshEl.textContent = d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate())
+                    + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds())
+                    + " (" + tz + ")";
+            }
+        } catch (e) {
+            consecutiveFailures++;
+            if (dot) dot.className = consecutiveFailures > 2 ? "dot dead" : "dot stale";
+            console.warn("Poll failed:", e);
+        }
+    }
+
+    poll();
+    setInterval(poll, POLL_INTERVAL_MS);
+
+    window.recheck = async function (name) {
+        const card = document.querySelector('[data-server="' + name + '"]');
+        if (card) card.style.opacity = "0.5";
+        try {
+            await fetch("/api/server/" + name + "/recheck", { method: "POST" });
+            await poll();
+        } finally {
+            if (card) card.style.opacity = "1";
+        }
+    };
+})();
 </script>
-
 {% endblock %}

@@ -442,3 +442,311 @@ footer {
 }
 
 .chart-wrap { position: relative; height: 280px; margin: 12px 0 20px; }
+
+/* ============================================================
+   v1.1.0 — Realtime "Task Manager" Dashboard 风格
+   ============================================================ */
+
+:root {
+    --grad-blue: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    --grad-purple: linear-gradient(135deg, #a78bfa 0%, #6d28d9 100%);
+    --grad-green: linear-gradient(135deg, #10b981 0%, #047857 100%);
+    --grad-red: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+    --grad-amber: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+    --shadow-card: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04);
+    --shadow-hover: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+/* === Dashboard header (新版,带 realtime 状态指示) === */
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 24px 32px 16px;
+    margin-bottom: 8px;
+}
+.dash-header h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.dash-header .meta {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Realtime polling 状态点 */
+.poll-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border-radius: 999px;
+    border: 1px solid var(--border);
+}
+.poll-status .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #475569;
+    animation: pulse 2s ease-in-out infinite;
+}
+.poll-status .dot.live { background: var(--ok); box-shadow: 0 0 8px rgba(16,185,129,0.6); }
+.poll-status .dot.stale { background: var(--warn); }
+.poll-status .dot.dead { background: var(--critical); animation: none; }
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* === KPI 总览条 === */
+.kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 0 32px 24px;
+}
+.kpi {
+    background: var(--bg-card);
+    padding: 18px 22px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s ease;
+}
+.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.kpi::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, currentColor, transparent);
+    opacity: 0.6;
+}
+.kpi-total { color: #60a5fa; }
+.kpi-ok    { color: #34d399; }
+.kpi-warn  { color: #fbbf24; }
+.kpi-crit  { color: #f87171; }
+
+.kpi-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.kpi-value {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    margin: 6px 0 4px;
+    color: currentColor;
+    text-shadow: 0 0 24px currentColor;
+    font-variant-numeric: tabular-nums;
+}
+.kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* === Server grid 调整 (改成更紧凑) === */
+.server-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 18px;
+    padding: 0 32px 32px;
+}
+.server-card {
+    background: var(--bg-card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+    padding: 18px 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+.server-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+
+/* 顶部彩条提示 health */
+.server-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent, #475569) 50%, transparent 100%);
+}
+.server-card.health-ok       { --accent: #10b981; }
+.server-card.health-warning  { --accent: #f59e0b; }
+.server-card.health-critical { --accent: #ef4444; }
+.server-card.health-down     { --accent: #71717a; }
+.server-card.health-unknown  { --accent: #475569; }
+
+/* card-head (旧叫 card-header,新结构) */
+.card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.card-title .health-badge {
+    font-size: 22px;
+    line-height: 1;
+}
+.card-title h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+}
+.card-addr {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    white-space: nowrap;
+}
+
+/* === 4 个迷你 sparkline === */
+.mini-charts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.mini {
+    background: rgba(255,255,255,0.025);
+    border-radius: 8px;
+    padding: 8px 10px 4px;
+    position: relative;
+    height: 70px;
+    display: flex;
+    flex-direction: column;
+}
+.mini-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    line-height: 1;
+}
+.mini-value {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    margin: 4px 0;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
+.mini-chart {
+    flex: 1;
+    width: 100%;
+    height: 28px !important;
+    max-height: 28px;
+}
+
+/* === 状态对(2 列布局) === */
+.status-pairs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.pair {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.pair .lbl {
+    color: var(--text-muted);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+.pair .val {
+    text-align: right;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pair .val.ok    { color: #34d399; }
+.pair .val.warn  { color: #fbbf24; }
+.pair .val.fail  { color: #f87171; }
+.pair .val.muted { color: var(--text-muted); }
+
+/* === 卡片底部 === */
+.card-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+.card-foot .small { font-size: 11px; }
+
+/* === 详情页多图 === */
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 16px 0;
+}
+.chart-wrap.small {
+    height: 200px;
+    padding: 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+}
+
+/* === 版本号样式微调(覆盖原来的) === */
+.brand .version {
+    font-size: 11px;
+    background: rgba(96, 165, 250, 0.15);
+    color: #93c5fd;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin-left: 4px;
+}
+
+/* ============================================================
+   响应式 (窄屏)
+   ============================================================ */
+@media (max-width: 720px) {
+    .dash-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+    }
+    .kpi-strip {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 0 16px 16px;
+    }
+    .kpi-value { font-size: 28px; }
+    .server-grid {
+        grid-template-columns: 1fr;
+        padding: 0 16px 16px;
+    }
+    .mini-charts { grid-template-columns: repeat(2, 1fr); }
+    .status-pairs { grid-template-columns: 1fr; }
+}

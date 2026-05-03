@@ -18,6 +18,11 @@
 
         <div class="detail-section">
             <h2>24h 历史 ({{ history|length }} 次探测)</h2>
+            <div class="charts-row">
+                <div class="chart-wrap small"><canvas id="cpu-chart"></canvas></div>
+                <div class="chart-wrap small"><canvas id="mem-chart"></canvas></div>
+                <div class="chart-wrap small"><canvas id="load-chart"></canvas></div>
+            </div>
             <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
             <table class="history-table">
                 <thead>
@@ -50,56 +55,75 @@
 <script>
 (function () {
     const history = {{ history | tojson }};
-    const ctx = document.getElementById("trend-chart");
-    if (!ctx || !history || history.length === 0) return;
+    if (!history || history.length === 0) return;
 
     const labels = history.map(h => {
         const d = new Date(h.timestamp);
         return d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
     });
-    const disk = history.map(h => (h.disk_pct == null ? null : h.disk_pct));
+    const disk   = history.map(h => h.disk_pct == null ? null : h.disk_pct);
     const errors = history.map(h => h.recent_errors_1h || 0);
+    const cpu    = history.map(h => h.cpu_pct == null ? null : h.cpu_pct);
+    const mem    = history.map(h => h.mem_pct == null ? null : h.mem_pct);
+    const load1  = history.map(h => h.load_1m == null ? null : h.load_1m);
+    const load5  = history.map(h => h.load_5m == null ? null : h.load_5m);
+    const load15 = history.map(h => h.load_15m == null ? null : h.load_15m);
 
-    new Chart(ctx, {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: "磁盘 %",
-                    data: disk,
-                    borderColor: "#4ade80",
-                    backgroundColor: "rgba(74, 222, 128, 0.1)",
-                    yAxisID: "y",
-                    tension: 0.25,
-                    pointRadius: 1,
-                    spanGaps: true,
-                },
-                {
-                    label: "最近 1h 错误日志",
-                    data: errors,
-                    borderColor: "#f87171",
-                    backgroundColor: "rgba(248, 113, 113, 0.1)",
-                    yAxisID: "y1",
-                    tension: 0.25,
-                    pointRadius: 1,
-                }
-            ]
+    function lineChart(id, datasets, opts) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        new Chart(el, {
+            type: "line",
+            data: { labels: labels, datasets: datasets },
+            options: Object.assign({
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: { legend: { position: "top" } },
+            }, opts || {}),
+        });
+    }
+
+    // 主图: 磁盘 + 错误数 (双轴)
+    lineChart("trend-chart", [
+        { label: "磁盘 %", data: disk, borderColor: "#4ade80",
+          backgroundColor: "rgba(74,222,128,0.1)", yAxisID: "y",
+          tension: 0.25, pointRadius: 1, spanGaps: true },
+        { label: "最近 1h 错误日志", data: errors, borderColor: "#f87171",
+          backgroundColor: "rgba(248,113,113,0.1)", yAxisID: "y1",
+          tension: 0.25, pointRadius: 1 },
+    ], {
+        scales: {
+            y:  { type: "linear", position: "left",  beginAtZero: true, max: 100,
+                  title: { display: true, text: "磁盘 %" } },
+            y1: { type: "linear", position: "right", beginAtZero: true,
+                  title: { display: true, text: "错误数" },
+                  grid: { drawOnChartArea: false } },
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: false },
-            scales: {
-                y:  { type: "linear", position: "left",  beginAtZero: true, max: 100,
-                      title: { display: true, text: "磁盘 %" } },
-                y1: { type: "linear", position: "right", beginAtZero: true,
-                      title: { display: true, text: "错误数" },
-                      grid: { drawOnChartArea: false } }
-            },
-            plugins: { legend: { position: "top" } }
-        }
     });
+
+    // CPU
+    lineChart("cpu-chart", [
+        { label: "CPU %", data: cpu, borderColor: "#60a5fa",
+          backgroundColor: "rgba(96,165,250,0.15)", fill: true,
+          tension: 0.3, pointRadius: 1, spanGaps: true },
+    ], { scales: { y: { beginAtZero: true, max: 100 } } });
+
+    // Memory
+    lineChart("mem-chart", [
+        { label: "内存 %", data: mem, borderColor: "#a78bfa",
+          backgroundColor: "rgba(167,139,250,0.15)", fill: true,
+          tension: 0.3, pointRadius: 1, spanGaps: true },
+    ], { scales: { y: { beginAtZero: true, max: 100 } } });
+
+    // Load average (1m / 5m / 15m)
+    lineChart("load-chart", [
+        { label: "Load 1m",  data: load1,  borderColor: "#f59e0b",
+          backgroundColor: "rgba(245,158,11,0.1)", tension: 0.3, pointRadius: 1, spanGaps: true },
+        { label: "Load 5m",  data: load5,  borderColor: "#fbbf24", borderDash: [4,4],
+          tension: 0.3, pointRadius: 0, spanGaps: true },
+        { label: "Load 15m", data: load15, borderColor: "#fcd34d", borderDash: [2,4],
+          tension: 0.3, pointRadius: 0, spanGaps: true },
+    ], { scales: { y: { beginAtZero: true } } });
 })();
 </script>
 {% endblock %}

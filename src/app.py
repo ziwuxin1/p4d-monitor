@@ -103,14 +103,31 @@ def create_app() -> Flask:
     @app.route("/api/servers")
     @auth.login_required
     def api_servers() -> Any:
+        """返回每台服务器: latest = 最新探测, sparkline = 最近 1h 关键指标."""
         latest = scheduler.get_latest_probes()
         cfg_now = cfgmod.load()
+        out: dict[str, Any] = {}
         for srv in cfg_now.get("servers", []):
-            if srv["name"] not in latest:
-                hist = db.latest_probe(srv["name"])
-                if hist:
-                    latest[srv["name"]] = hist
-        return jsonify(latest)
+            name = srv["name"]
+            cur = latest.get(name) or db.latest_probe(name)
+            if not cur:
+                continue
+            # sparkline: 最近 60min 简化数据点(每点只 7 个字段)
+            hist = db.history_probes(name, hours=1)
+            spark = [
+                {
+                    "ts": h.get("timestamp"),
+                    "cpu": h.get("cpu_pct"),
+                    "mem": h.get("mem_pct"),
+                    "disk": h.get("disk_pct"),
+                    "errors": h.get("recent_errors_1h", 0),
+                    "load": h.get("load_1m"),
+                    "health": h.get("health"),
+                }
+                for h in hist
+            ]
+            out[name] = {"latest": cur, "sparkline": spark}
+        return jsonify(out)
 
     @app.route("/api/server/<name>/history")
     @auth.login_required
