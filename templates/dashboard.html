@@ -197,7 +197,7 @@
 
         const lic = p.p4_license || "—";
         const licOk = lic !== "—" && !/none|5 user/i.test(lic);
-        setField(card, "p4_license", lic.length > 40 ? lic.slice(0, 40) + "…" : lic, licOk ? "ok" : "fail");
+        setField(card, "p4_license", lic, licOk ? "ok" : "fail");
 
         const counterOk = p.counter_consistent !== false;
         setField(card, "counter",
