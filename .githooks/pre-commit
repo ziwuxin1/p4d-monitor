@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: 当 src/templates/static 下任何文件被 stage 时,
+# 自动把 src/__init__.py 里 __version__ 的 patch 号 +1,
+# 并把改动加进当前 commit。
+#
+# 启用(每个 clone 都要跑一次):
+#     git config core.hooksPath .githooks
+#
+
+set -e
+
+version_file="src/__init__.py"
+
+# 看这次 commit 改了什么
+staged="$(git diff --cached --name-only)"
+
+# 没动 src/templates/static 下的文件就不 bump
+if ! echo "$staged" | grep -qE '^(src|templates|static)/'; then
+    exit 0
+fi
+
+# 如果用户已经手动改了 __version__ 这一行,尊重(可能 minor/major 升级)
+if echo "$staged" | grep -qx "$version_file"; then
+    if git diff --cached "$version_file" | grep -q '^[+-]__version__'; then
+        echo "[pre-commit] 检测到 __version__ 已手动修改,跳过自动 bump"
+        exit 0
+    fi
+fi
+
+# 取当前版本号
+current="$(grep '^__version__ = ' "$version_file" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')"
+if [[ -z "$current" ]]; then
+    echo "pre-commit: 找不到 __version__,跳过 bump" >&2
+    exit 0
+fi
+
+IFS='.' read -r major minor patch <<< "$current"
+patch=$((patch + 1))
+new="${major}.${minor}.${patch}"
+
+# 用 perl 改 (Windows/Mac/Linux 都兼容)
+perl -i -pe 's/^(__version__ = )"[0-9]+\.[0-9]+\.[0-9]+"/$1"'"$new"'"/' "$version_file"
+
+git add "$version_file"
+echo "[pre-commit] $version_file: $current -> $new"
